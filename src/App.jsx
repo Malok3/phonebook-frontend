@@ -45,24 +45,28 @@ const App = () => {
   //add new person
   const addName = (event) => {
     event.preventDefault();
+
     const personObject = {
       name: newName,
       number: newNumber,
     };
+    const opts = { runValidators: true }; //moongose options
+    
+    const duplicatePerson = persons.filter(
+      (person) => person.name === newName
+    )
+    
+    const personToAdd = duplicatePerson[0]
+    const updatedPerson = { ...personToAdd, number: newNumber }
 
-    const duplicatePerson = persons.find(
-      (person) => person.name.toLowerCase() === newName.toLowerCase()
-    );
-
-    if (duplicatePerson) {
+    if (duplicatePerson.length > 0) {
       if (
         window.confirm(
           `${newName} is already added to phonebook. Replace the old number with a new one?`
         )
       ) {
-        const updatedPerson = { ...duplicatePerson, number: newNumber };
         personService
-          .update(updatedPerson.id, updatedPerson)
+          .update(updatedPerson.id, updatedPerson, opts)
           .then((returnedPerson) => {
             setPersons(
               persons.map((person) =>
@@ -71,6 +75,7 @@ const App = () => {
             );
             setNewName('');
             setNewNumber('');
+            setSuccess(true);
             setNotification(`${returnedPerson.name} number has been updated.`);        
               setTimeout(() => {          
                   setNotification(null)        
@@ -78,16 +83,12 @@ const App = () => {
               )
           })
           .catch((error) => {
-              setPersons(
-                persons.filter(person => person.id !== updatedPerson.id)
-              );
+            console.log('error update')              
               setSuccess(false);
-              setNotification(`${updatedPerson.name} has already been removed from server.`);
+              setNotification(error.response.data.error);
               setTimeout(() => {
                 setNotification(null);
               }, 5000);
-              
-            
           });
       }
     } else {
@@ -97,6 +98,7 @@ const App = () => {
           setPersons(persons.concat(returnedPerson));
           setNewName('');
           setNewNumber('');
+          setSuccess(true);
           setNotification(`${returnedPerson.name} was added to the phone book.`);        
             setTimeout(() => {          
                 setNotification(null)        
@@ -104,14 +106,18 @@ const App = () => {
             )
         })
         .catch((error) => {
-          console.error('Error creating contact:', error);
+          setSuccess(false);
+          setNotification(error.response.data.error);        
+            setTimeout(() => {          
+                setNotification(null)        
+              },5000
+            )
         });
     }
   };
 
 
   const deletePerson = (id) => {
-    console.log(id)
     const personToDelete = persons.find((person) => person.id === id);
     if (window.confirm(`Do you really want to delete ${personToDelete.name}?`)) {
       personService
